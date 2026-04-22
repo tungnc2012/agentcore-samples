@@ -1,0 +1,63 @@
+========================================
+ACTIVE PROMOTIONS & DISCOUNTS
+========================================
+
+--- SUMMER2026: Summer Sale ---
+Promo Code: SUMMER2026
+Description: Summer sale — 15% off electronics and audio products
+Discount: 15%
+Applies to categories: Electronics, Audio
+Valid until: August 31, 2026
+Terms:
+  - Cannot be combined with other promo codes
+  - Applies to in-stock items only
+  - No minimum purchase required
+
+--- ACCESSORY10: Accessories Discount ---
+Promo Code: ACCESSORY10
+Description: 10% off all accessories
+Discount: 10%
+Applies to categories: Accessories
+Valid until: December 31, 2026
+Terms:
+  - Can be combined with bulk purchase discounts
+  - Applies to in-stock items only
+  - No minimum purchase required
+
+--- WELCOME5: New Customer Discount ---
+Promo Code: WELCOME5
+Description: 5% off your first order on any category
+Discount: 5%
+Applies to categories: Electronics, Audio, Accessories (all categories)
+Valid until: December 31, 2026
+Terms:
+  - First-time customers only (one use per account)
+  - Cannot be combined with other promo codes
+  - No minimum purchase required
+
+--- BUNDLE20: Bundle & Save ---
+Promo Code: BUNDLE20
+Description: 20% off when you buy 3 or more different products in a single order
+Discount: 20%
+Applies to categories: All categories
+Valid until: October 31, 2026
+Terms:
+  - Must purchase 3 or more distinct product IDs
+  - Cannot be combined with SUMMER2026 or WELCOME5
+  - Can be combined with bulk purchase discounts
+
+========================================
+BULK PURCHASE DISCOUNTS
+========================================
+
+Bulk discounts are applied automatically based on quantity per product:
+
+  - 3-4 units of the same product: 5% discount
+  - 5-9 units of the same product: 10% discount
+  - 10+ units of the same product: 15% discount
+
+Notes:
+  - Bulk discounts apply per product line (e.g., 5 headphones = 10% off headphones)
+  - Bulk discounts can be combined with ACCESSORY10 and BUNDLE20 promo codes
+  - Bulk discounts cannot be combined with SUMMER2026 or WELCOME5
+  - For orders of 50+ units, contact our B2B sales team for custom pricing
