@@ -1,0 +1,130 @@
+========================================
+PRODUCT CATALOG
+========================================
+
+--- PROD-001: Wireless Headphones ---
+Product ID: PROD-001
+Name: Wireless Headphones
+Category: Audio
+Price: $79.99
+Description: Noise-cancelling Bluetooth headphones with 30-hour battery life.
+Features:
+  - Active Noise Cancellation (ANC)
+  - Bluetooth 5.3
+  - 30-hour battery life
+  - Foldable design with carrying case
+  - Built-in microphone for calls
+Warranty: 12 months
+Availability: In Stock
+
+--- PROD-002: Smart Watch ---
+Product ID: PROD-002
+Name: Smart Watch
+Category: Electronics
+Price: $249.99
+Description: Fitness tracker with heart rate monitor, GPS, and 5-day battery.
+Features:
+  - Continuous heart rate monitoring
+  - Built-in GPS tracking
+  - 5-day battery life
+  - Water resistant up to 50 meters
+  - Sleep tracking and stress monitoring
+  - Compatible with iOS and Android
+Warranty: 24 months
+Availability: In Stock
+
+--- PROD-003: Laptop Stand ---
+Product ID: PROD-003
+Name: Laptop Stand
+Category: Accessories
+Price: $39.99
+Description: Adjustable aluminum laptop stand for ergonomic desk setup.
+Features:
+  - Adjustable height (6 levels)
+  - Premium aluminum construction
+  - Supports laptops up to 17 inches
+  - Non-slip silicone pads
+  - Cable management slot
+  - Foldable and portable
+Warranty: 6 months
+Availability: In Stock
+
+--- PROD-004: USB-C Hub ---
+Product ID: PROD-004
+Name: USB-C Hub
+Category: Accessories
+Price: $54.99
+Description: 7-in-1 USB-C hub with HDMI, USB-A, SD card reader, and ethernet.
+Features:
+  - 4K HDMI output (60Hz)
+  - 2x USB-A 3.0 ports
+  - SD and microSD card reader
+  - Gigabit Ethernet port
+  - 100W Power Delivery pass-through
+  - Plug and play, no drivers needed
+Warranty: 12 months
+Availability: In Stock
+
+--- PROD-005: Mechanical Keyboard ---
+Product ID: PROD-005
+Name: Mechanical Keyboard
+Category: Electronics
+Price: $129.99
+Description: RGB mechanical keyboard with Cherry MX switches.
+Features:
+  - Cherry MX Blue switches (clicky)
+  - Per-key RGB backlighting
+  - Full N-key rollover
+  - Detachable USB-C cable
+  - Aluminum top plate
+  - Programmable macros via software
+Warranty: 24 months
+Availability: In Stock
+
+--- PROD-006: Portable Bluetooth Speaker ---
+Product ID: PROD-006
+Name: Portable Bluetooth Speaker
+Category: Audio
+Price: $59.99
+Description: Waterproof portable speaker with 360-degree sound and 20-hour battery.
+Features:
+  - IPX7 waterproof rating
+  - 360-degree immersive sound
+  - 20-hour battery life
+  - Built-in microphone for speakerphone
+  - Pair two speakers for stereo sound
+  - Compact and lightweight (450g)
+Warranty: 12 months
+Availability: In Stock
+
+--- PROD-007: Wireless Charging Pad ---
+Product ID: PROD-007
+Name: Wireless Charging Pad
+Category: Accessories
+Price: $29.99
+Description: Fast wireless charger compatible with all Qi-enabled devices.
+Features:
+  - 15W fast charging
+  - Compatible with all Qi-enabled devices
+  - LED indicator light
+  - Anti-slip surface
+  - Over-charge and over-heat protection
+  - Slim profile (8mm thick)
+Warranty: 12 months
+Availability: In Stock
+
+--- PROD-008: 4K Webcam ---
+Product ID: PROD-008
+Name: 4K Webcam
+Category: Electronics
+Price: $89.99
+Description: Ultra HD webcam with auto-focus, noise-cancelling mic, and privacy shutter.
+Features:
+  - 4K Ultra HD resolution (30fps)
+  - Auto-focus and auto light correction
+  - Dual noise-cancelling microphones
+  - Built-in privacy shutter
+  - Universal clip mount (monitors and tripods)
+  - USB-A and USB-C compatible
+Warranty: 24 months
+Availability: In Stock
