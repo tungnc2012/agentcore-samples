@@ -1,9 +1,14 @@
 """
-Customer Support Agent — Getting Started Sample
+Customer Support Agent — Bedrock Knowledge Base Edition
 
-This is the agent code you'll copy into app/CustomerSupport/main.py after
-running `agentcore create`. It replaces the generated sample with a customer
-support agent that has two tools: product lookup and return policy lookup.
+This agent retrieves product info, return policies, and promotions from
+an Amazon Bedrock Knowledge Base backed by S3 instead of hardcoded data.
+
+Before deploying:
+  1. Create a Bedrock Knowledge Base pointing to an S3 bucket
+  2. Upload the files from kb-docs/ to that S3 bucket
+  3. Sync the Knowledge Base
+  4. Set KNOWLEDGE_BASE_ID below (or via environment variable)
 
 Usage:
   1. agentcore create --name CustomerSupport --framework Strands --model-provider Bedrock --defaults
@@ -14,6 +19,8 @@ Usage:
   6. agentcore invoke "What products do you have?" --stream
 """
 
+import os
+import boto3
 from strands import Agent, tool
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from model.load import load_model
@@ -21,88 +28,123 @@ from model.load import load_model
 app = BedrockAgentCoreApp()
 log = app.logger
 
-# --- Product & Policy Data ---
+# --- Bedrock Knowledge Base Configuration ---
+KNOWLEDGE_BASE_ID = os.environ.get("KNOWLEDGE_BASE_ID", "YOUR_KB_ID")
 
-RETURN_POLICIES = {
-    "electronics": {
-        "window": "30 days",
-        "condition": "Original packaging required, must be unused or defective",
-        "refund": "Full refund to original payment method",
-    },
-    "accessories": {
-        "window": "14 days",
-        "condition": "Must be in original packaging, unused",
-        "refund": "Store credit or exchange",
-    },
-    "audio": {
-        "window": "30 days",
-        "condition": "Defective items only after 15 days",
-        "refund": "Full refund within 15 days, replacement after",
-    },
-}
+bedrock_agent_runtime = boto3.client("bedrock-agent-runtime")
 
-PRODUCTS = {
-    "PROD-001": {"name": "Wireless Headphones", "price": 79.99, "category": "audio",
-                 "description": "Noise-cancelling Bluetooth headphones with 30h battery life", "warranty_months": 12},
-    "PROD-002": {"name": "Smart Watch", "price": 249.99, "category": "electronics",
-                 "description": "Fitness tracker with heart rate monitor, GPS, and 5-day battery", "warranty_months": 24},
-    "PROD-003": {"name": "Laptop Stand", "price": 39.99, "category": "accessories",
-                 "description": "Adjustable aluminum laptop stand for ergonomic desk setup", "warranty_months": 6},
-    "PROD-004": {"name": "USB-C Hub", "price": 54.99, "category": "accessories",
-                 "description": "7-in-1 USB-C hub with HDMI, USB-A, SD card reader, and ethernet", "warranty_months": 12},
-    "PROD-005": {"name": "Mechanical Keyboard", "price": 129.99, "category": "electronics",
-                 "description": "RGB mechanical keyboard with Cherry MX switches", "warranty_months": 24},
-}
+
+def _query_kb(query: str, num_results: int = 5) -> str:
+    """Query the Bedrock Knowledge Base and return concatenated results."""
+    try:
+        response = bedrock_agent_runtime.retrieve(
+            knowledgeBaseId=KNOWLEDGE_BASE_ID,
+            retrievalQuery={"text": query},
+            retrievalConfiguration={
+                "vectorSearchConfiguration": {
+                    "numberOfResults": num_results
+                }
+            },
+        )
+        results = []
+        for result in response.get("retrievalResults", []):
+            text = result.get("content", {}).get("text", "").strip()
+            if text:
+                results.append(text)
+        if results:
+            return "\n---\n".join(results)
+        return "No relevant information found in the knowledge base."
+    except Exception as e:
+        log.error(f"KB retrieval error: {e}")
+        return f"Error retrieving information: {e}"
 
 
 # --- Tools ---
-# The @tool decorator turns a Python function into a tool the LLM can call.
-# The docstring is what the model reads to decide when and how to use the tool.
 
 @tool
-def get_return_policy(product_category: str) -> str:
-    """Get return policy information for a specific product category.
+def search_products(query: str) -> str:
+    """Search for product information by name, ID, category, or keyword.
+
+    Use this tool when the customer asks about products, pricing, features,
+    availability, warranty, or wants to browse the catalog.
 
     Args:
-        product_category: Product category (e.g., 'electronics', 'accessories', 'audio')
+        query: Product name, ID (e.g., 'PROD-001'), category, or search keyword
 
     Returns:
-        Formatted return policy details including timeframes and conditions
+        Product details from the knowledge base
     """
-    category = product_category.lower()
-    if category in RETURN_POLICIES:
-        policy = RETURN_POLICIES[category]
-        return (f"Return policy for {category}: Window: {policy['window']}, "
-                f"Condition: {policy['condition']}, Refund: {policy['refund']}")
-    return f"No specific return policy found for '{product_category}'. Please contact support."
+    return _query_kb(f"product information: {query}")
 
 
 @tool
-def get_product_info(query: str) -> str:
-    """Search for product information by name, ID, or keyword.
+def search_return_policy(topic: str) -> str:
+    """Look up return and refund policy information.
+
+    Use this tool when the customer asks about returns, refunds, exchanges,
+    return windows, return conditions, or how to initiate a return.
 
     Args:
-        query: Product name, ID (e.g., 'PROD-001'), or search keyword
+        topic: The return policy topic or product category
+               (e.g., 'electronics return policy', 'how to return', 'refund timeline')
 
     Returns:
-        Product details including name, price, category, and description
+        Return policy details from the knowledge base
     """
-    query_lower = query.lower()
-    # Search by product ID
-    if query.upper() in PRODUCTS:
-        p = PRODUCTS[query.upper()]
-        return (f"{p['name']} ({query.upper()}): ${p['price']}, Category: {p['category']}, "
-                f"{p['description']}, Warranty: {p['warranty_months']} months")
-    # Search by keyword
-    results = [
-        f"{pid}: {p['name']} - ${p['price']} - {p['description']}"
-        for pid, p in PRODUCTS.items()
-        if query_lower in p['name'].lower() or query_lower in p['description'].lower()
-           or query_lower in p['category'].lower()
-    ]
-    if results:
-        return "Found products:\n" + "\n".join(results)
-    return f"No products found matching '{query}'."
+    return _query_kb(f"return policy: {topic}")
+
+
+@tool
+def search_promotions(query: str) -> str:
+    """Look up current promotions, promo codes, and bulk purchase discounts.
+
+    Use this tool when the customer asks about deals, discounts, promo codes,
+    bulk pricing, or ways to save money.
+
+    Args:
+        query: Promotion topic, category, or promo code
+               (e.g., 'electronics discounts', 'SUMMER2026', 'bulk discount')
+
+    Returns:
+        Promotion and discount details from the knowledge base
+    """
+    return _query_kb(f"promotions and discounts: {query}")
+
+
+@tool
+def calculate_bulk_price(product_id: str, quantity: int) -> str:
+    """Calculate the total price for a bulk purchase including any volume discount.
+
+    Use this tool when the customer wants to know the price for buying multiple
+    units of the same product.
+
+    Args:
+        product_id: The product ID (e.g., 'PROD-001')
+        quantity: Number of units to purchase (must be >= 1)
+
+    Returns:
+        Price breakdown with discount tier and total
+    """
+    if quantity < 1:
+        return "Quantity must be at least 1."
+
+    product_info = _query_kb(f"product {product_id} price", num_results=1)
+
+    discount_pct = 0
+    if quantity >= 10:
+        discount_pct = 15
+    elif quantity >= 5:
+        discount_pct = 10
+    elif quantity >= 3:
+        discount_pct = 5
+
+    return (
+        f"Bulk order details for {product_id} x{quantity}:\n"
+        f"Product info from catalog:\n{product_info}\n\n"
+        f"Bulk discount tier: {discount_pct}% "
+        f"({'no discount — minimum 3 units for 5% off' if discount_pct == 0 else f'for {quantity}+ units'})\n"
+        f"Note: Apply the {discount_pct}% discount to the unit price shown above to calculate the final total."
+    )
 
 
 # --- Agent Setup ---
@@ -110,15 +152,19 @@ def get_product_info(query: str) -> str:
 SYSTEM_PROMPT = """You are a helpful and professional customer support assistant for an e-commerce company.
 
 Your role is to:
-- Provide accurate information using the tools available to you
+- Provide accurate information by searching the knowledge base using your tools
 - Be friendly, patient, and understanding with customers
+- Proactively mention relevant promotions or bulk discounts when appropriate
 - Always offer additional help after answering questions
 
 You have access to:
-1. get_return_policy() - Look up return policies by product category
-2. get_product_info() - Search product information by name, ID, or keyword
+1. search_products() - Search the product catalog for info, pricing, features, warranty
+2. search_return_policy() - Look up return and refund policies
+3. search_promotions() - Find active promo codes and bulk discount info
+4. calculate_bulk_price() - Calculate total price for bulk orders with volume discounts
 
-Always use the appropriate tool rather than guessing."""
+Always use the appropriate tool to look up information rather than guessing.
+If a tool returns no results, let the customer know and offer to help differently."""
 
 _agent = None
 
@@ -129,7 +175,7 @@ def get_or_create_agent():
         _agent = Agent(
             model=load_model(),
             system_prompt=SYSTEM_PROMPT,
-            tools=[get_return_policy, get_product_info],
+            tools=[search_products, search_return_policy, search_promotions, calculate_bulk_price],
         )
     return _agent
 
