@@ -37,6 +37,12 @@ Run your agent locally:
 agentcore dev
 ```
 
+If you have issue with agentcore command, try this
+
+```bash
+alias agentcore=/opt/homebrew/bin/agentcore
+```
+
 ### Deployment
 
 Deploy to AWS:
