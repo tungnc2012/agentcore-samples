@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Support Agent</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            padding: 2rem;
+        }
+        .chat-container {
+            width: 100%;
+            max-width: 720px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+        }
+        .chat-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #eee;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #232f3e;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .message {
+            max-width: 80%;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .message.user {
+            align-self: flex-end;
+            background: #232f3e;
+            color: #fff;
+        }
+        .message.assistant {
+            align-self: flex-start;
+            background: #f0f0f0;
+            color: #333;
+        }
+        .message.error {
+            align-self: center;
+            background: #fee;
+            color: #c00;
+            font-size: 0.9rem;
+        }
+        .chat-input-area {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 0.75rem;
+        }
+        .chat-input-area input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+        }
+        .chat-input-area input:focus { border-color: #232f3e; }
+        .chat-input-area button {
+            padding: 0.75rem 1.5rem;
+            background: #232f3e;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+        .chat-input-area button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .typing-indicator {
+            align-self: flex-start;
+            color: #999;
+            font-style: italic;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">Customer Support Agent</div>
+        <div class="chat-messages" id="messages" role="log" aria-live="polite">
+            <div class="message assistant">
+                Hi there! I'm your customer support assistant. I can help you with product info, return policies, promotions, and bulk pricing. How can I help?
+            </div>
+        </div>
+        <div class="chat-input-area">
+            <label for="userInput" class="sr-only" style="position:absolute;left:-9999px;">Message</label>
+            <input type="text" id="userInput" placeholder="Type your message..."
+                   aria-label="Type your message" autocomplete="off" />
+            <button id="sendBtn" onclick="sendMessage()" aria-label="Send message">Send</button>
+        </div>
+    </div>
+
+    <script>
+        // ---- CONFIGURE THIS ----
+        const API_URL = "YOUR_API_GATEWAY_URL";  // e.g. https://abc123.execute-api.us-east-1.amazonaws.com/prod/chat
+
+        const messagesEl = document.getElementById("messages");
+        const inputEl = document.getElementById("userInput");
+        const sendBtn = document.getElementById("sendBtn");
+
+        inputEl.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !sendBtn.disabled) sendMessage();
+        });
+
+        async function sendMessage() {
+            const prompt = inputEl.value.trim();
+            if (!prompt) return;
+
+            appendMessage("user", prompt);
+            inputEl.value = "";
+            sendBtn.disabled = true;
+
+            const typingEl = document.createElement("div");
+            typingEl.className = "typing-indicator";
+            typingEl.textContent = "Agent is thinking...";
+            messagesEl.appendChild(typingEl);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+
+            try {
+                const res = await fetch(API_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ prompt }),
+                });
+                const data = await res.json();
+                typingEl.remove();
+
+                if (res.ok) {
+                    appendMessage("assistant", data.response);
+                } else {
+                    appendMessage("error", data.error || "Something went wrong.");
+                }
+            } catch (err) {
+                typingEl.remove();
+                appendMessage("error", "Network error. Please try again.");
+            }
+            sendBtn.disabled = false;
+            inputEl.focus();
+        }
+
+        function appendMessage(role, text) {
+            const div = document.createElement("div");
+            div.className = `message ${role}`;
+            div.textContent = text;
+            messagesEl.appendChild(div);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+    </script>
+</body>
+</html>
