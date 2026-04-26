@@ -790,20 +790,172 @@ aws bedrock-agentcore-control update-agent-runtime \
 
 ## Cost Considerations
 
-### What You're Paying For
+AgentCore uses **consumption-based pricing** — no upfront costs or minimum fees. You pay only for what you use.
 
-1. **AgentCore Runtime**: Charged per vCPU-hour and GB-hour while running
-2. **Bedrock Model Invocations**: Per-token pricing for Claude/Nova
-3. **S3 Storage**: Minimal cost for storing agent package
-4. **CloudWatch Logs**: Log storage and ingestion
+> Prices shown are for `us-east-1`. Other regions may vary. Always check the [official pricing pages](#pricing-references) for the latest rates.
 
-### Estimated Costs (us-east-1)
+---
 
-- **AgentCore Runtime**: ~$0.10-0.20/hour (varies by instance size)
-- **Bedrock (Claude 3.5 Sonnet)**: ~$3/1M input tokens, ~$15/1M output tokens
-- **S3 + CloudWatch**: <$1/month for typical usage
+### 1. AgentCore Runtime
 
-**Example:** 100 agent invocations/day with average 500 tokens each = ~$0.50-1.00/day
+Charged per active session based on vCPU and memory consumed.
+
+| Resource | Price |
+|----------|-------|
+| vCPU | $0.0895 per vCPU-hour |
+| Memory | $0.00945 per GB-hour |
+
+**Example:** A session using 1 vCPU + 2 GB RAM running for 1 hour:
+```
+(1 × $0.0895) + (2 × $0.00945) = $0.1084 per hour
+```
+
+Sessions are billed only while active. Idle time between invocations is not charged.
+
+---
+
+### 2. Amazon Bedrock Model Inference
+
+Charged per token (input + output). Pricing varies by model.
+
+#### Amazon Nova Models (recommended for ap-southeast-1 / APAC)
+
+| Model | Input (per 1M tokens) | Output (per 1M tokens) |
+|-------|----------------------|------------------------|
+| Nova Micro | $0.035 | $0.14 |
+| Nova Lite | $0.06 | $0.24 |
+| Nova Pro | $0.80 | $3.20 |
+
+#### Anthropic Claude Models (us-east-1 only)
+
+| Model | Input (per 1M tokens) | Output (per 1M tokens) |
+|-------|----------------------|------------------------|
+| Claude 3 Haiku | $0.25 | $1.25 |
+| Claude 3.5 Sonnet | $3.00 | $15.00 |
+| Claude Opus 4.5 | $5.00 | $25.00 |
+
+> Cross-region inference profiles (e.g., `apac.amazon.nova-lite-v1:0`) may have slightly different rates. Check the Bedrock pricing page for details.
+
+---
+
+### 3. Supporting Services
+
+#### Option A: S3 Zip Deployment
+
+| Resource | Price |
+|----------|-------|
+| S3 Storage | $0.023 per GB/month |
+| S3 PUT request (upload) | $0.005 per 1,000 requests |
+| S3 GET request (runtime pull) | $0.0004 per 1,000 requests |
+
+For a typical ~5 MB agent package: **< $0.01/month**
+
+#### Option B: ECR Container Deployment
+
+| Resource | Price |
+|----------|-------|
+| ECR Storage | $0.10 per GB/month |
+| ECR Data Transfer (within region) | Free |
+
+For a typical ~300 MB container image: **~$0.03/month**
+
+#### CloudWatch Logs (both options)
+
+| Resource | Price |
+|----------|-------|
+| Log ingestion | $0.50 per GB |
+| Log storage | $0.03 per GB/month |
+
+For typical agent usage: **< $1/month**
+
+---
+
+### Cost Examples
+
+#### Example 1: Light Development Usage
+- 50 invocations/day, ~500 tokens each (250 input + 250 output)
+- Model: Nova Lite
+- Session duration: ~5 seconds per invocation
+
+```
+Daily tokens:  50 × 500 = 25,000 tokens
+Monthly tokens: 25,000 × 30 = 750,000 tokens
+
+Bedrock (Nova Lite):
+  Input:  375,000 × $0.06/1M  = $0.02
+  Output: 375,000 × $0.24/1M  = $0.09
+
+Runtime (50 sessions × 5s = 250s = 0.07 hours):
+  vCPU:   0.07 × $0.0895      = $0.006
+  Memory: 0.07 × 2 × $0.00945 = $0.001
+
+Monthly total: ~$0.12/month
+```
+
+#### Example 2: Moderate Production Usage
+- 1,000 invocations/day, ~1,000 tokens each
+- Model: Claude 3.5 Sonnet
+- Session duration: ~10 seconds per invocation
+
+```
+Daily tokens:  1,000 × 1,000 = 1,000,000 tokens
+Monthly tokens: 1,000,000 × 30 = 30,000,000 tokens
+
+Bedrock (Claude 3.5 Sonnet):
+  Input:  15M × $3.00/1M  = $45.00
+  Output: 15M × $15.00/1M = $225.00
+
+Runtime (1,000 sessions × 10s = 2.78 hours/day × 30 = 83.3 hours):
+  vCPU:   83.3 × $0.0895      = $7.46
+  Memory: 83.3 × 2 × $0.00945 = $1.57
+
+Monthly total: ~$279/month
+```
+
+#### Example 3: This Tutorial (Getting Started)
+- ~20 test invocations total
+- Model: Nova Lite or Claude 3 Haiku
+- Just learning/testing
+
+```
+Estimated total cost: < $0.05
+```
+
+---
+
+### Cost Optimization Tips
+
+- **Use Nova Lite** for development and testing — it's ~50x cheaper than Claude 3.5 Sonnet
+- **Stop sessions** when done with `stop_runtime_session` to avoid idle charges
+- **Set idle timeout** on your runtime to auto-terminate inactive sessions
+- **Use prompt caching** for repeated system prompts (reduces input token costs)
+- **Monitor with CloudWatch** — set billing alerts at $5, $20, $50 thresholds
+
+Set a billing alert:
+```bash
+aws cloudwatch put-metric-alarm \
+  --alarm-name "AgentCore-Cost-Alert" \
+  --alarm-description "Alert when estimated charges exceed $10" \
+  --metric-name EstimatedCharges \
+  --namespace AWS/Billing \
+  --statistic Maximum \
+  --period 86400 \
+  --threshold 10 \
+  --comparison-operator GreaterThanThreshold \
+  --dimensions Name=Currency,Value=USD \
+  --evaluation-periods 1 \
+  --alarm-actions arn:aws:sns:us-east-1:YOUR_ACCOUNT_ID:billing-alerts
+```
+
+---
+
+### Pricing References
+
+- [Amazon Bedrock AgentCore Pricing](https://aws.amazon.com/bedrock/agentcore/pricing/)
+- [Amazon Bedrock Model Pricing](https://aws.amazon.com/bedrock/pricing/)
+- [Amazon ECR Pricing](https://aws.amazon.com/ecr/pricing/)
+- [Amazon S3 Pricing](https://aws.amazon.com/s3/pricing/)
+- [Amazon CloudWatch Pricing](https://aws.amazon.com/cloudwatch/pricing/)
 
 ---
 
