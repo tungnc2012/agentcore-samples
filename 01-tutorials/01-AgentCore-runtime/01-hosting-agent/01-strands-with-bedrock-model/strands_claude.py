@@ -1,31 +1,16 @@
 """
-Agent code for AgentCore Runtime deployment.
-This file is written by the notebook's %%writefile cells and used as the entrypoint.
+Agent entrypoint for AgentCore Runtime deployment.
+This file is packaged into the container and run by the runtime.
+It must ONLY contain agent code — no configure/launch/deploy logic.
 """
 from strands import Agent, tool
 from strands_tools import calculator
-import argparse
-import json
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
-from bedrock_agentcore_starter_toolkit import Runtime
 from strands.models import BedrockModel
-from boto3.session import Session
-boto_session = Session()
-region = boto_session.region_name
-
-agentcore_runtime = Runtime()
-agent_name = "strands_claude_getting_started"
-response = agentcore_runtime.configure(
-    entrypoint="strands_claude.py",
-    auto_create_execution_role=True,
-    auto_create_ecr=True,
-    requirements_file="requirements.txt",
-    region=region,
-    agent_name=agent_name
-)
-response
 
 app = BedrockAgentCoreApp()
+
+
 @tool
 def weather(city: str):
     """Get weather information.
