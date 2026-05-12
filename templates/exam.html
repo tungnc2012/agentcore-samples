@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block title %}Question {{ idx + 1 }} / {{ total }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .exam-layout { display: grid; grid-template-columns: 1fr 220px; gap: 20px; align-items: start; }
+    .sidebar { position: sticky; top: 20px; }
+    .sidebar .nav-grid { grid-template-columns: repeat(5, 1fr); gap: 4px; }
+    .nav-btn.correct { background: #34a853; color: white; border-color: #34a853; }
+    .nav-btn.incorrect { background: #ea4335; color: white; border-color: #ea4335; }
+    .nav-btn.marked { background: #9e9e9e; color: white; border-color: #9e9e9e; }
+    .nav-btn.unanswered { background: white; border-color: #ddd; }
+    .sidebar-legend { font-size: 0.75rem; color: #666; margin-top: 10px; line-height: 1.8; }
+    .sidebar-legend span { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: middle; margin-right: 4px; }
+    .mark-btn { margin-top: 12px; }
+    @media (max-width: 768px) { .exam-layout { grid-template-columns: 1fr; } .sidebar { position: static; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex-between mb-16">
+    <div>
+        <span class="progress">Question {{ idx + 1 }} / {{ total }}</span>
+        {% if mode == "practice" %}
+        <span class="badge badge-practice">PRACTICE</span>
+        {% else %}
+        <span class="badge badge-timed">TIMED</span>
+        {% endif %}
+    </div>
+    <div class="flex-row">
+        {% if mode == "timed" %}
+        <div class="timer" id="timer">--:--:--</div>
+        {% endif %}
+        <a href="{{ url_for('reset') }}" class="btn btn-secondary" style="font-size: 0.85rem;">🏠 Home</a>
+    </div>
+</div>
+
+<div class="exam-layout">
+    <!-- LEFT/CENTER: Question + Answers -->
+    <div>
+        <div class="card">
+            <h3 style="margin-bottom: 16px;">{{ question.text }}</h3>
+
+            <form action="{{ url_for('submit_answer_route') }}" method="post">
+                <input type="hidden" name="idx" value="{{ idx }}">
+
+                {% for key in shuffled_keys %}
+                <label class="option-label
+                    {% if feedback and key in feedback.get('selected', []) and feedback['correct'] %}correct-answer
+                    {% elif feedback and key in feedback.get('selected', []) and not feedback['correct'] %}wrong-answer
+                    {% elif feedback and key in feedback.get('correct_answers', []) %}correct-answer
+                    {% elif key in answers.get(question.id, []) %}selected{% endif %}">
+
+                    {% if question.question_type == "single" %}
+                    <input type="radio" name="answer" value="{{ key }}"
+                           {% if key in answers.get(question.id, []) %}checked{% endif %}
+                           {% if feedback %}disabled{% endif %}>
+                    {% else %}
+                    <input type="checkbox" name="answer" value="{{ key }}"
+                           {% if key in answers.get(question.id, []) %}checked{% endif %}
+                           {% if feedback %}disabled{% endif %}>
+                    {% endif %}
+                    <strong>{{ key }}.</strong> {{ question.options[key] }}
+                </label>
+                {% endfor %}
+
+                {% if not feedback %}
+                <div class="mt-16 flex-row">
+                    <button type="submit" class="btn btn-primary">Submit Answer</button>
+                </div>
+                {% endif %}
+            </form>
+
+            {% if feedback %}
+            <div class="mt-16">
+                {% if feedback['correct'] %}
+                <div class="flash flash-success">✅ Correct!</div>
+                {% else %}
+                <div class="flash flash-error">
+                    ❌ Incorrect. Correct answer(s):
+                    {% for k in feedback['correct_answers'] %}
+                        <strong>{{ k }}</strong>{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Mark for Review -->
+            <div class="mark-btn">
+                <form action="{{ url_for('mark_review', idx=idx) }}" method="post" style="display: inline;">
+                    {% if idx in marked_for_review %}
+                    <button type="submit" class="btn btn-secondary">🔖 Unmark Review</button>
+                    {% else %}
+                    <button type="submit" class="btn btn-secondary">🔖 Mark for Review</button>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="flex-between mt-16">
+            <div>
+                {% if idx > 0 %}
+                <a href="{{ url_for('exam', idx=idx-1) }}" class="btn btn-secondary">← Previous</a>
+                {% endif %}
+            </div>
+            <div class="flex-row">
+                {% if idx < total - 1 %}
+                <a href="{{ url_for('exam', idx=idx+1) }}" class="btn btn-primary">Next →</a>
+                {% else %}
+                <a href="{{ url_for('finish') }}" class="btn btn-success">🏁 Finish</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: Question Navigator -->
+    <div class="sidebar">
+        <div class="card" style="padding: 12px;">
+            <div class="nav-grid">
+                {% for i in range(total) %}
+                {% set qid = questions[i].id %}
+                {% set q_fb = all_feedback.get(qid | string) if all_feedback else none %}
+                <a href="{{ url_for('exam', idx=i) }}"
+                   class="nav-btn
+                    {% if i == idx %}current
+                    {% elif q_fb and q_fb['correct'] %}correct
+                    {% elif q_fb and not q_fb['correct'] %}incorrect
+                    {% elif i in marked_for_review %}marked
+                    {% elif qid in all_answers %}answered
+                    {% else %}unanswered{% endif %}">
+                    {{ i + 1 }}
+                </a>
+                {% endfor %}
+            </div>
+
+            <div class="sidebar-legend">
+                <span style="background: #1a73e8;"></span> Current<br>
+                <span style="background: #34a853;"></span> Correct<br>
+                <span style="background: #ea4335;"></span> Incorrect<br>
+                <span style="background: #9e9e9e;"></span> Marked for review<br>
+                <span style="background: #e8f0fe; border: 1px solid #1a73e8;"></span> Answered<br>
+                <span style="background: white; border: 1px solid #ddd;"></span> Unanswered
+            </div>
+        </div>
+
+        {% if mode == "timed" %}
+        <div class="text-center mt-16">
+            <a href="{{ url_for('finish') }}" class="btn btn-danger" style="width: 100%;">📤 Submit Exam</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if mode == "timed" and start_time %}
+<script>
+    const startTime = new Date("{{ start_time }}").getTime();
+    const durationMs = {{ duration_minutes }} * 60 * 1000;
+    const endTime = startTime + durationMs;
+
+    function updateTimer() {
+        const now = Date.now();
+        const remaining = Math.max(0, endTime - now);
+
+        if (remaining <= 0) {
+            document.getElementById("timer").textContent = "00:00:00";
+            window.location.href = "{{ url_for('finish') }}";
+            return;
+        }
+
+        const h = Math.floor(remaining / 3600000);
+        const m = Math.floor((remaining % 3600000) / 60000);
+        const s = Math.floor((remaining % 60000) / 1000);
+        document.getElementById("timer").textContent =
+            String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    }
+
+    updateTimer();
+    setInterval(updateTimer, 1000);
+</script>
+{% endif %}
+{% endblock %}

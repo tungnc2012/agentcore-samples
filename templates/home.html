@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}DevOps Prep - Upload{% endblock %}
+{% block content %}
+<div class="card text-center">
+    <h2 style="margin-bottom: 8px;">Cloud Certification Exam Simulator</h2>
+    <p style="color: #666; margin-bottom: 24px;">Upload your exam questions to get started</p>
+
+    <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
+        <div style="border: 2px dashed #ccc; border-radius: 8px; padding: 40px; margin-bottom: 16px;">
+            <p style="margin-bottom: 12px;">📄 Select an XLSX file with exam questions</p>
+            <input type="file" name="file" accept=".xlsx" required style="font-size: 1rem;">
+        </div>
+        <button type="submit" class="btn btn-primary">Upload & Parse</button>
+    </form>
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom: 8px;">Supported Formats</h3>
+    <p style="font-size: 0.9rem; color: #666;">
+        <strong>Format 1:</strong> Question, Option_A, Option_B, Option_C, Option_D, Option_E (optional), Option_F (optional), Correct_Answer, Question_Type<br>
+        <strong>Format 2:</strong> Question Number, Question Text, Option A, Option B, Option C, Option D, Option E (optional), Correct answer
+    </p>
+</div>
+{% endblock %}

@@ -14,6 +14,7 @@ class Question:
     options: dict[str, str]  # {"A": "...", "B": "...", ...}
     correct_answers: list[str]  # ["A"] or ["A", "C"]
     question_type: str  # "single" or "multiple"
+    explanation: str = ""  # Optional explanation for the correct answer
 
 
 @dataclass
@@ -64,6 +65,7 @@ class ExamSession:
                     "options": q.options,
                     "correct_answers": q.correct_answers,
                     "question_type": q.question_type,
+                    "explanation": getattr(q, "explanation", ""),
                 }
                 for q in self.questions
             ],
@@ -87,6 +89,7 @@ class ExamSession:
                 options=q["options"],
                 correct_answers=q["correct_answers"],
                 question_type=q["question_type"],
+                explanation=q.get("explanation", ""),
             )
             for q in data["questions"]
         ]

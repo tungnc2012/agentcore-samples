@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Review - Question {{ idx + 1 }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .review-layout { display: grid; grid-template-columns: 1fr 220px; gap: 20px; align-items: start; }
+    .sidebar { position: sticky; top: 20px; }
+    .sidebar .nav-grid { grid-template-columns: repeat(5, 1fr); gap: 4px; }
+    .nav-btn.correct { background: #34a853; color: white; border-color: #34a853; }
+    .nav-btn.incorrect { background: #ea4335; color: white; border-color: #ea4335; }
+    .nav-btn.review-current { background: #1a73e8; color: white; border-color: #1a73e8; }
+    .sidebar-legend { font-size: 0.75rem; color: #666; margin-top: 10px; line-height: 1.8; }
+    .sidebar-legend span { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: middle; margin-right: 4px; }
+    @media (max-width: 768px) { .review-layout { grid-template-columns: 1fr; } .sidebar { position: static; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex-between mb-16">
+    <span class="progress">Review: Question {{ idx + 1 }} / {{ total }}</span>
+    <a href="{{ url_for('results') }}" class="btn btn-secondary">← Back to Results</a>
+</div>
+
+<div class="review-layout">
+    <!-- LEFT/CENTER: Question Review -->
+    <div>
+        <div class="card">
+            <h3 style="margin-bottom: 16px;">{{ question.text }}</h3>
+
+            {% for key in question.options.keys() | sort %}
+            <div class="option-label
+                {% if key in qr['correct_answers'] and key in qr['selected_answers'] %}correct-answer
+                {% elif key in qr['correct_answers'] %}correct-answer
+                {% elif key in qr['selected_answers'] %}wrong-answer
+                {% endif %}" style="cursor: default;">
+
+                <strong>{{ key }}.</strong> {{ question.options[key] }}
+            </div>
+            {% endfor %}
+
+            <!-- Static Explanation from XLSX -->
+            {% if question.explanation %}
+            <div style="margin-top: 20px; padding: 16px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px;">
+                <div style="font-size: 0.9rem; color: #333;">
+                    {{ question.explanation }}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- AI Explanation Button / Result -->
+            <div style="margin-top: 16px;">
+                {% if ai_explanation %}
+                <div style="padding: 16px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px;">
+                    <div style="margin-bottom: 8px; font-weight: 600; color: #1e40af;">
+                        🤖 AI Explanation
+                    </div>
+                    <div style="font-size: 0.9rem; color: #333; white-space: pre-wrap;">{{ ai_explanation }}</div>
+                </div>
+                {% else %}
+                <form action="{{ url_for('explain', idx=idx) }}" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-primary" style="background: #6366f1;">
+                        ✨ 🤖 Ask AI to explain
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="flex-between mt-16">
+            <div>
+                {% if idx > 0 %}
+                <a href="{{ url_for('review', idx=idx-1) }}" class="btn btn-secondary">← Previous</a>
+                {% endif %}
+            </div>
+            <div>
+                {% if idx < total - 1 %}
+                <a href="{{ url_for('review', idx=idx+1) }}" class="btn btn-primary">Next →</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: Question Navigator -->
+    <div class="sidebar">
+        <div class="card" style="padding: 12px;">
+            <div class="nav-grid">
+                {% for i in range(total) %}
+                {% set qr_item = question_results[i] %}
+                <a href="{{ url_for('review', idx=i) }}"
+                   class="nav-btn
+                    {% if i == idx %}review-current
+                    {% elif qr_item['is_correct'] %}correct
+                    {% else %}incorrect{% endif %}">
+                    {{ i + 1 }}
+                </a>
+                {% endfor %}
+            </div>
+
+            <div class="sidebar-legend">
+                <span style="background: #1a73e8;"></span> Current<br>
+                <span style="background: #34a853;"></span> Correct<br>
+                <span style="background: #ea4335;"></span> Incorrect
+            </div>
+        </div>
+
+        <div class="text-center mt-16">
+            <a href="{{ url_for('results') }}" class="btn btn-secondary" style="width: 100%;">📊 Results Summary</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

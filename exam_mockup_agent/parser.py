@@ -71,18 +71,19 @@ def validate_xlsx_structure(file_path: str) -> tuple[bool, list[str]]:
     return (len(missing) == 0, missing)
 
 
-def _parse_alt_correct_answer(raw_value: str) -> tuple[list[str], str]:
+def _parse_alt_correct_answer(raw_value: str) -> tuple[list[str], str, str]:
     """Parse the alternative format's 'Correct answer' column.
 
     The value is typically 'B\\nExplanation...' or 'B, E\\nExplanation...'.
-    Returns (correct_answers, question_type).
+    Returns (correct_answers, question_type, explanation).
     """
     if not raw_value:
-        return ([], "single")
+        return ([], "single", "")
 
     # Split on newline — answer letters are before the first newline
     parts = raw_value.split("\n", 1)
     answer_part = parts[0].strip()
+    explanation = parts[1].strip() if len(parts) > 1 else ""
 
     if "," in answer_part:
         correct_answers = [a.strip().upper() for a in answer_part.split(",")]
@@ -91,7 +92,7 @@ def _parse_alt_correct_answer(raw_value: str) -> tuple[list[str], str]:
         correct_answers = [answer_part.upper()]
         question_type = "single"
 
-    return (correct_answers, question_type)
+    return (correct_answers, question_type, explanation)
 
 
 def parse_xlsx(file_path: str) -> list[Question]:
@@ -201,7 +202,7 @@ def _parse_alt_format(headers: list, rows: list) -> list[Question]:
         correct_raw = row[col_index["Correct answer"]]
         if correct_raw is None:
             correct_raw = ""
-        correct_answers, question_type = _parse_alt_correct_answer(str(correct_raw))
+        correct_answers, question_type, explanation = _parse_alt_correct_answer(str(correct_raw))
 
         questions.append(
             Question(
@@ -210,6 +211,7 @@ def _parse_alt_format(headers: list, rows: list) -> list[Question]:
                 options=options,
                 correct_answers=correct_answers,
                 question_type=question_type,
+                explanation=explanation,
             )
         )
 

@@ -1,7 +1,8 @@
-"""AI Explanation Agent - Generate answer explanations using Strands Agents + Bedrock."""
+"""AI Explanation Agent - Generate answer explanations using Amazon Bedrock."""
 
-from strands import Agent
-from strands.models.bedrock import BedrockModel
+import json
+
+import boto3
 
 from exam_mockup_agent.models import Question
 
@@ -40,7 +41,7 @@ def _build_explanation_prompt(question: Question, selected_answers: list[str]) -
 
 
 def explain_answer(question: Question, selected_answers: list[str]) -> str:
-    """Generate an AI explanation for a question using Strands Agent with Bedrock Claude.
+    """Generate an AI explanation for a question using Amazon Bedrock Claude.
 
     Args:
         question: The Question object to explain.
@@ -49,16 +50,25 @@ def explain_answer(question: Question, selected_answers: list[str]) -> str:
     Returns:
         A string containing the AI-generated explanation.
     """
-    model = BedrockModel(
-        model_id="us.anthropic.claude-sonnet-4-20250514",
-        region_name="us-east-1",
-    )
-
-    agent = Agent(
-        model=model,
-        system_prompt=SYSTEM_PROMPT,
-    )
+    client = boto3.client("bedrock-runtime", region_name="us-east-1")
 
     prompt = _build_explanation_prompt(question, selected_answers)
-    result = agent(prompt)
-    return str(result)
+
+    body = json.dumps({
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": 1024,
+        "system": SYSTEM_PROMPT,
+        "messages": [
+            {"role": "user", "content": prompt}
+        ],
+    })
+
+    response = client.invoke_model(
+        modelId="us.anthropic.claude-sonnet-4-20250514",
+        contentType="application/json",
+        accept="application/json",
+        body=body,
+    )
+
+    result = json.loads(response["body"].read())
+    return result["content"][0]["text"]
