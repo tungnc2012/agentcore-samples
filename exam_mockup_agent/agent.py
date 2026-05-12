@@ -50,7 +50,7 @@ def explain_answer(question: Question, selected_answers: list[str]) -> str:
         A string containing the AI-generated explanation.
     """
     model = BedrockModel(
-        model_id="us.anthropic.claude-sonnet-4-20250514",
+        model_id="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
         region_name="us-east-1",
     )
 
