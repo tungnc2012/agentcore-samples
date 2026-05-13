@@ -197,6 +197,7 @@ def exam(idx: int):
         marked_for_review=session.get("marked_for_review", []),
         start_time=exam_session.start_time,
         duration_minutes=exam_session.duration_minutes,
+        ai_explanation=session.get("ai_explanations", {}).get(str(question.id)),
     )
 
 
@@ -361,6 +362,33 @@ def explain(idx: int):
     return redirect(url_for("review", idx=idx))
 
 
+@app.route("/explain-practice/<int:idx>", methods=["POST"])
+def explain_practice(idx: int):
+    """Call Bedrock AI to explain a question during a practice session."""
+    exam_session = _get_exam_session()
+    if exam_session is None:
+        return redirect(url_for("home"))
+
+    if idx < 0 or idx >= len(exam_session.questions):
+        return redirect(url_for("exam", idx=idx))
+
+    question = exam_session.questions[idx]
+    selected_answers = exam_session.answers.get(question.id, [])
+
+    try:
+        from exam_mockup_agent.agent import explain_answer as ai_explain
+        explanation = ai_explain(question, selected_answers)
+    except Exception as e:
+        explanation = f"Error calling AI: {e}"
+
+    # Store in session keyed by question id
+    ai_explanations = session.get("ai_explanations", {})
+    ai_explanations[str(question.id)] = explanation
+    session["ai_explanations"] = ai_explanations
+
+    return redirect(url_for("exam", idx=idx))
+
+
 @app.route("/reset")
 def reset():
     """Reset session and go home."""
@@ -369,4 +397,4 @@ def reset():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=True, host="0.0.0.0", port=5001)

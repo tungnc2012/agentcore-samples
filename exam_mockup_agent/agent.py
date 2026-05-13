@@ -64,7 +64,7 @@ def explain_answer(question: Question, selected_answers: list[str]) -> str:
     })
 
     response = client.invoke_model(
-        modelId="us.anthropic.claude-sonnet-4-20250514",
+        modelId="us.anthropic.claude-sonnet-4-20250514-v1:0",
         contentType="application/json",
         accept="application/json",
         body=body,

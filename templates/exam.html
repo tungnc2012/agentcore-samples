@@ -84,6 +84,26 @@
                 </div>
                 {% endif %}
             </div>
+
+            <!-- AI Explanation (practice mode only) -->
+            {% if mode == "practice" %}
+            <div style="margin-top: 16px;">
+                {% if ai_explanation %}
+                <div style="padding: 16px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px;">
+                    <div style="margin-bottom: 8px; font-weight: 600; color: #1e40af;">
+                        🤖 AI Explanation
+                    </div>
+                    <div style="font-size: 0.9rem; color: #333; white-space: pre-wrap;">{{ ai_explanation }}</div>
+                </div>
+                {% else %}
+                <form action="{{ url_for('explain_practice', idx=idx) }}" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-primary" style="background: #6366f1;">
+                        ✨ 🤖 Ask AI to explain
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+            {% endif %}
             {% endif %}
 
             <!-- Mark for Review -->
