@@ -8,19 +8,18 @@ from exam_mockup_agent.models import ExamSession, Question
 
 
 def shuffle_options(question: Question) -> list[str]:
-    """Return a random permutation of the option keys for a question.
-
-    The correct answer mapping is preserved since answers reference original keys.
+    """Return the option keys in their natural order (A, B, C, D, E, F).
+    
+    Shuffling is disabled to maintain consistent answer order.
 
     Args:
-        question: The question whose option keys to shuffle.
+        question: The question whose option keys to return.
 
     Returns:
-        A shuffled list of option keys (e.g. ["C", "A", "D", "B"]).
+        A sorted list of option keys (e.g. ["A", "B", "C", "D"]).
     """
     keys = list(question.options.keys())
-    random.shuffle(keys)
-    return keys
+    return sorted(keys)  # Always return in alphabetical order
 
 
 def _generate_shuffled_options(questions: list[Question]) -> dict[int, list[str]]:

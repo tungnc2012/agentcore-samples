@@ -83,6 +83,18 @@
                     {% endfor %}
                 </div>
                 {% endif %}
+                
+                <!-- Show explanation from XLSX if available -->
+                {% if question.explanation %}
+                <div style="margin-top: 12px; padding: 16px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px;">
+                    <div style="margin-bottom: 6px; font-weight: 600; color: #15803d; font-size: 0.9rem;">
+                        📖 Explanation
+                    </div>
+                    <div style="font-size: 0.9rem; color: #333; line-height: 1.5;">
+                        {{ question.explanation }}
+                    </div>
+                </div>
+                {% endif %}
             </div>
 
             <!-- AI Explanation (practice mode only) -->

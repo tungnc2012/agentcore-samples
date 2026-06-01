@@ -74,7 +74,8 @@ def validate_xlsx_structure(file_path: str) -> tuple[bool, list[str]]:
 def _parse_alt_correct_answer(raw_value: str) -> tuple[list[str], str, str]:
     """Parse the alternative format's 'Correct answer' column.
 
-    The value is typically 'B\\nExplanation...' or 'B, E\\nExplanation...'.
+    The value is typically 'Option B\\nExplanation...' or 'Option B, Option E\\nExplanation...'
+    or 'Option B and Option D\\nExplanation...'.
     Returns (correct_answers, question_type, explanation).
     """
     if not raw_value:
@@ -85,8 +86,17 @@ def _parse_alt_correct_answer(raw_value: str) -> tuple[list[str], str, str]:
     answer_part = parts[0].strip()
     explanation = parts[1].strip() if len(parts) > 1 else ""
 
-    if "," in answer_part:
-        correct_answers = [a.strip().upper() for a in answer_part.split(",")]
+    # Remove "Option " prefix if present (case-insensitive)
+    # Handles: "Option A", "OPTION A", "option a", etc.
+    import re
+    answer_part = re.sub(r'\bOption\s+', '', answer_part, flags=re.IGNORECASE)
+
+    # Check for multiple answers - separated by comma, "and", or both
+    # Examples: "A, B", "A and B", "A, B and C", "B and D"
+    if "," in answer_part or " and " in answer_part.lower():
+        # Replace " and " with "," to normalize separators
+        answer_part = re.sub(r'\s+and\s+', ',', answer_part, flags=re.IGNORECASE)
+        correct_answers = [a.strip().upper() for a in answer_part.split(",") if a.strip()]
         question_type = "multiple"
     else:
         correct_answers = [answer_part.upper()]

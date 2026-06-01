@@ -88,6 +88,15 @@ def upload():
             flash("No questions found in the file.", "error")
             return redirect(url_for("home"))
 
+        # Debug: Print first question to verify parsing
+        if questions:
+            print(f"DEBUG: First question parsed:")
+            print(f"  ID: {questions[0].id}")
+            print(f"  Text: {questions[0].text[:50]}...")
+            print(f"  Options: {questions[0].options}")
+            print(f"  Correct answers: {questions[0].correct_answers}")
+            print(f"  Question type: {questions[0].question_type}")
+
         # Store questions in session
         session["questions"] = [
             {
@@ -221,12 +230,24 @@ def submit_answer_route():
         flash("Please select an answer.", "warning")
         return redirect(url_for("exam", idx=idx))
 
+    # Clean and normalize the selected answers
+    selected = [s.strip().upper() for s in selected]
+
     submit_answer(exam_session, question.id, selected)
     _save_exam_session(exam_session)
 
     # Store feedback for practice mode
     if exam_session.mode == "practice":
         is_correct = set(selected) == set(question.correct_answers)
+        
+        # Debug logging
+        print(f"DEBUG: Question ID: {question.id}")
+        print(f"DEBUG: Selected: {selected}")
+        print(f"DEBUG: Correct answers: {question.correct_answers}")
+        print(f"DEBUG: Is correct: {is_correct}")
+        print(f"DEBUG: Selected set: {set(selected)}")
+        print(f"DEBUG: Correct set: {set(question.correct_answers)}")
+        
         feedback = session.get("feedback", {})
         if isinstance(feedback, str):
             feedback = json.loads(feedback)
