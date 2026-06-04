@@ -316,6 +316,259 @@ Properties serve as the bridge between human-readable specifications and machine
 
 **Validates: Requirements 6.4**
 
+## End-to-End User Experience
+
+### User Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Browser
+    participant ALB
+    participant ECS as ECS Fargate (Flask)
+    participant Bedrock as Amazon Bedrock (Claude)
+
+    User->>Browser: Navigate to app URL
+    Browser->>ALB: HTTPS request
+    ALB->>ECS: Forward to Flask container (port 5000)
+    ECS->>Browser: Render home page
+
+    User->>Browser: Upload XLSX file
+    Browser->>ALB: POST /upload
+    ALB->>ECS: Parse & validate XLSX
+    ECS->>Browser: Redirect to mode selection
+
+    User->>Browser: Select Practice or Timed mode
+    Browser->>ALB: POST /start
+    ALB->>ECS: Create session, shuffle options
+    ECS->>Browser: Render exam view
+
+    loop Answer Questions
+        User->>Browser: Select answer, click Submit
+        Browser->>ALB: POST /submit-answer
+        ALB->>ECS: Record answer, score (practice mode)
+        ECS->>Browser: Render feedback / next question
+    end
+
+    User->>Browser: Click "Explain with AI"
+    Browser->>ALB: POST /explain-practice/{idx}
+    ALB->>ECS: Call Bedrock for explanation
+    ECS->>Bedrock: InvokeModel (Claude)
+    Bedrock->>ECS: AI explanation text
+    ECS->>Browser: Render explanation
+
+    User->>Browser: Finish exam
+    Browser->>ALB: GET /finish
+    ALB->>ECS: Calculate score, generate results
+    ECS->>Browser: Render results (pass/fail)
+```
+
+### Deployment Modes
+
+| Mode | Frontend | Backend | AI Layer | Session Storage |
+|------|----------|---------|----------|-----------------|
+| Local Dev | Flask on localhost:5001 | In-process Python | Bedrock API (direct) | Filesystem sessions |
+| AWS Production | ALB → ECS Fargate | Flask container | Bedrock API (IAM role) | Filesystem sessions (ephemeral) |
+| AgentCore (headless) | None (API only) | AgentCore Runtime | Bedrock (managed) | In-memory |
+
+## Infrastructure Architecture (Terraform)
+
+### Overview
+
+The infrastructure is defined using Terraform (HCL) to deploy the Flask web application as a containerized service on ECS Fargate behind an Application Load Balancer. Terraform provides declarative, cloud-agnostic IaC with a mature AWS provider, state management, and plan/apply workflow for safe deployments.
+
+### Stack Diagram
+
+```mermaid
+graph TB
+    subgraph "AWS Cloud"
+        subgraph "VPC"
+            subgraph "Public Subnets"
+                ALB[Application Load Balancer]
+            end
+            subgraph "Private Subnets"
+                ECS[ECS Fargate Service]
+            end
+        end
+        ECR[ECR Repository]
+        CW[CloudWatch Logs]
+        IAM[IAM Roles]
+        Bedrock[Amazon Bedrock]
+    end
+
+    Internet((Internet)) --> ALB
+    ALB --> ECS
+    ECS --> ECR
+    ECS --> CW
+    ECS --> Bedrock
+    IAM -.-> ECS
+```
+
+### Terraform Resources
+
+**`infra/main.tf`** — Primary configuration containing:
+
+| Resource | Terraform Resource Type | Purpose |
+|----------|------------------------|---------|
+| VPC | `aws_vpc`, `aws_subnet`, `aws_nat_gateway` | Network isolation with public + private subnets (2 AZs) |
+| ECR Repository | `aws_ecr_repository` | Store Docker images for the Flask app |
+| ECS Cluster | `aws_ecs_cluster` | Fargate cluster for running containers |
+| Task Definition | `aws_ecs_task_definition` | Container config (512 CPU, 1024 MB memory) |
+| ECS Service | `aws_ecs_service` | Service with desired count, deployment config |
+| ALB | `aws_lb`, `aws_lb_target_group`, `aws_lb_listener` | Load balancer with health checks |
+| IAM Task Role | `aws_iam_role`, `aws_iam_role_policy` | Grants `bedrock:InvokeModel` on the Claude model |
+| CloudWatch Log Group | `aws_cloudwatch_log_group` | Centralized logging with 30-day retention |
+| Security Groups | `aws_security_group` | Allow inbound 80/443 (ALB), ECS from ALB only |
+| Auto Scaling | `aws_appautoscaling_target`, `aws_appautoscaling_policy` | Scale 1-3 tasks at 70% CPU |
+
+### Terraform Project Structure
+
+```
+infra/
+├── main.tf                   # Provider config, VPC, networking
+├── ecs.tf                    # ECS cluster, task definition, service
+├── alb.tf                    # Load balancer, target group, listener
+├── iam.tf                    # IAM roles and policies
+├── ecr.tf                    # ECR repository
+├── variables.tf              # Input variables (region, app name, etc.)
+├── outputs.tf                # Output values (ALB DNS, ECR URL)
+├── terraform.tfvars          # Default variable values
+└── backend.tf                # Remote state config (S3 + DynamoDB)
+```
+
+### Key Configuration
+
+```hcl
+# variables.tf
+variable "aws_region" {
+  default = "us-east-1"
+}
+
+variable "app_name" {
+  default = "exam-mockup-agent"
+}
+
+variable "container_port" {
+  default = 5000
+}
+
+variable "cpu" {
+  default = 512
+}
+
+variable "memory" {
+  default = 1024
+}
+
+variable "min_capacity" {
+  default = 1
+}
+
+variable "max_capacity" {
+  default = 3
+}
+
+variable "target_cpu_utilization" {
+  default = 70
+}
+```
+
+```hcl
+# ECS task definition (ecs.tf)
+resource "aws_ecs_task_definition" "app" {
+  family                   = var.app_name
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = var.cpu
+  memory                   = var.memory
+  execution_role_arn       = aws_iam_role.ecs_execution.arn
+  task_role_arn            = aws_iam_role.ecs_task.arn
+
+  container_definitions = jsonencode([{
+    name  = var.app_name
+    image = "${aws_ecr_repository.app.repository_url}:latest"
+    portMappings = [{ containerPort = var.container_port }]
+    environment = [
+      { name = "AWS_DEFAULT_REGION", value = var.aws_region }
+    ]
+    secrets = [
+      { name = "FLASK_SECRET_KEY", valueFrom = aws_ssm_parameter.flask_secret.arn }
+    ]
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        "awslogs-group"         = aws_cloudwatch_log_group.app.name
+        "awslogs-region"        = var.aws_region
+        "awslogs-stream-prefix" = "ecs"
+      }
+    }
+  }])
+}
+```
+
+### IAM Policy (Task Role)
+
+```hcl
+resource "aws_iam_role_policy" "bedrock_access" {
+  name = "bedrock-invoke"
+  role = aws_iam_role.ecs_task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["bedrock:InvokeModel"]
+      Resource = "arn:aws:bedrock:us-east-1::foundation-model/us.anthropic.claude-sonnet-4-20250514"
+    }]
+  })
+}
+```
+
+### Deployment Workflow
+
+```mermaid
+flowchart LR
+    A[Developer pushes code] --> B[Build Docker image]
+    B --> C[Push to ECR]
+    C --> D[terraform plan]
+    D --> E[terraform apply]
+    E --> F[ECS rolling deployment]
+```
+
+**Deploy commands:**
+```bash
+# First time setup
+cd infra
+terraform init
+terraform plan
+
+# Deploy infrastructure
+terraform apply
+
+# Build and push Docker image
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+ECR_URL=$(terraform output -raw ecr_repository_url)
+docker build -t $ECR_URL:latest ..
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_URL
+docker push $ECR_URL:latest
+
+# Force new ECS deployment (picks up new image)
+aws ecs update-service --cluster exam-mockup-agent --service exam-mockup-agent --force-new-deployment
+```
+
+### State Management
+
+- Remote state stored in S3 with DynamoDB locking
+- State encryption at rest via S3 bucket encryption
+- Plan output reviewed before apply for safe changes
+
+### Network Configuration
+
+- VPC with 2 Availability Zones
+- Public subnets: ALB (internet-facing)
+- Private subnets: ECS tasks (no direct internet access, NAT gateway for outbound to Bedrock)
+- Security group: ALB allows inbound 80/443 from 0.0.0.0/0; ECS allows inbound only from ALB security group
+
 ## Error Handling
 
 | Error Scenario | Handling Strategy |
@@ -328,6 +581,9 @@ Properties serve as the bridge between human-readable specifications and machine
 | Session deserialization failure | Catch JSON/validation errors, inform user session is corrupted |
 | Bedrock API failure (AI explanation) | Retry once, then display fallback message asking user to try again |
 | Timer expiry during answer submission | Accept the in-flight submission, then end session |
+| ECS health check failure | ALB drains connections, ECS replaces unhealthy task automatically |
+| Terraform apply failure | State locks prevent concurrent changes; manual intervention to fix or rollback |
+| ECR image push failure | Deployment blocked; no change to running service |
 
 ## Testing Strategy
 

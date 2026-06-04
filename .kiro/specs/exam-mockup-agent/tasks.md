@@ -213,9 +213,68 @@
     - _Requirements: 5.3_
 
 - [x] 9. Final Checkpoint - Make sure all tests are passing
-
-
-
-
-
   - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 10. Set up Terraform infrastructure project
+
+
+
+
+
+
+  - [x] 10.1 Initialize Terraform project structure
+
+    - Create `infra/` directory with `main.tf`, `ecs.tf`, `alb.tf`, `iam.tf`, `ecr.tf`, `variables.tf`, `outputs.tf`, `terraform.tfvars`, and `backend.tf`
+    - Configure AWS provider with `us-east-1` region
+    - Define input variables: `aws_region`, `app_name`, `container_port`, `cpu`, `memory`, `min_capacity`, `max_capacity`
+    - _Requirements: 5.3_
+
+
+  - [x] 10.2 Implement VPC and networking (`main.tf`)
+
+    - Define VPC with 2 AZs, public subnets (for ALB), private subnets (for ECS tasks)
+    - Add NAT gateway for outbound access from private subnets (Bedrock API calls)
+    - Add internet gateway for public subnets
+    - Configure route tables for public and private subnets
+    - Configure security groups: ALB allows inbound 80/443; ECS allows inbound only from ALB SG
+    - _Requirements: 5.3_
+
+
+  - [x] 10.3 Implement ECR repository (`ecr.tf`)
+
+    - Create `aws_ecr_repository` with image tag mutability set to MUTABLE
+    - Add lifecycle policy to keep last 5 images
+    - Output the repository URL
+    - _Requirements: 5.3_
+
+
+  - [x] 10.4 Implement IAM roles (`iam.tf`)
+
+    - Create ECS task execution role with `AmazonECSTaskExecutionRolePolicy` and SSM read access
+    - Create ECS task role with `bedrock:InvokeModel` permission scoped to the Claude model ARN
+    - _Requirements: 5.3_
+
+
+  - [x] 10.5 Implement ECS Fargate service with ALB (`ecs.tf`, `alb.tf`)
+
+    - Create ECS cluster
+    - Define task definition: 512 CPU, 1024 MB memory, container port 5000, awslogs driver
+    - Wire FLASK_SECRET_KEY from SSM Parameter Store via `secrets` block
+    - Set environment variable `AWS_DEFAULT_REGION=us-east-1`
+    - Create ALB in public subnets with target group and listener (port 80)
+    - Set health check on path `/` with 30-second interval
+    - Create ECS service with desired count 1, assign to private subnets
+    - Configure auto-scaling: min 1, max 3, target 70% CPU utilization
+    - Add CloudWatch log group with 30-day retention
+    - _Requirements: 5.3_
+
+
+  - [x] 10.6 Update Dockerfile for production Flask deployment
+
+    - Add `templates/` directory to the COPY step
+    - Change entrypoint to run Flask via gunicorn on port 5000
+    - Add gunicorn to `requirements.txt`
+    - _Requirements: 5.1, 5.2, 5.3_
+
+- [ ] 11. Checkpoint - Verify Terraform validates correctly
+  - Ensure `terraform init` and `terraform validate` pass, ask the user if questions arise.
